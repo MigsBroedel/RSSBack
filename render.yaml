@@ -21,6 +21,8 @@ services:
         generateValue: true
       - key: PROJECT_NAME
         value: "Personalized RSS Feed"
+      - key: BACKEND_CORS_ORIGINS
+        value: "*" # Permite acesso de qualquer origem (Mobile/Web). Para produção, especifique domínios: "https://meu-app.com,https://dashboard.com"
 
   # Background Worker (Celery)
   - type: worker
