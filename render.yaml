@@ -59,7 +59,8 @@ services:
   # Redis (Broker / Cache)
   - type: redis
     name: rss-redis
-    plan: free # Optional: Explicitly state plan if needed OR remove ipAllowList line to use default internal only behavior
+    plan: free # Optional: Explicitly state plan if needed
+    ipAllowList: [] # internal only
 
 
 
