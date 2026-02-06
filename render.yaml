@@ -6,6 +6,8 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: ./scripts/start.sh
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
       - key: DATABASE_URL
         fromDatabase:
           name: rss-db
@@ -34,6 +36,8 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: ./scripts/worker_start.sh
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
       - key: DATABASE_URL
         fromDatabase:
           name: rss-db
@@ -55,7 +59,8 @@ services:
   # Redis (Broker / Cache)
   - type: redis
     name: rss-redis
-    ipAllowList: [] # acesso interno apenas
+    plan: free # Optional: Explicitly state plan if needed OR remove ipAllowList line to use default internal only behavior
+
 
 
 databases:
