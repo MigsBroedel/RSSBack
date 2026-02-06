@@ -2,8 +2,8 @@ services:
   # Web Service (FastAPI)
   - type: web
     name: rss-backend
-    runtime: python
-    runtimeVersion: 3.11
+    env: python
+    pythonVersion: 3.11
     buildCommand: pip install -r requirements.txt
     startCommand: ./scripts/start.sh
     envVars:
@@ -25,14 +25,14 @@ services:
         value: "Personalized RSS Feed"
 
       - key: BACKEND_CORS_ORIGINS
-        value: "*" # Em produção, restrinja para domínios específicos
+        value: "*"
 
 
   # Background Worker (Celery)
   - type: worker
     name: rss-worker
-    runtime: python
-    runtimeVersion: 3.11
+    env: python
+    pythonVersion: 3.11
     buildCommand: pip install -r requirements.txt
     startCommand: ./scripts/worker_start.sh
     envVars:
