@@ -11,8 +11,6 @@ passlib[bcrypt]
 feedparser
 httpx
 beautifulsoup4
-redis
-celery
 tenacity
 python-multipart
 lxml
