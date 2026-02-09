@@ -5,15 +5,13 @@ from pydantic import AnyHttpUrl, validator
 class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     PROJECT_NAME: str = "Personalized RSS Feed"
-    BACKEND_CORS_ORIGINS: List[str] = []
+    BACKEND_CORS_ORIGINS: List[str] | str = []
 
     @validator("BACKEND_CORS_ORIGINS", pre=True)
     def assemble_cors_origins(cls, v: str | List[str]) -> List[str] | str:
         if isinstance(v, str) and not v.startswith("["):
             return [i.strip() for i in v.split(",")]
-        elif isinstance(v, (list, str)):
-            return v
-        raise ValueError(v)
+        return v
     
     SECRET_KEY: str = "change_me_super_secret_key"
     ALGORITHM: str = "HS256"
@@ -32,8 +30,6 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             return v
         
-        # Check if we have a generic DATABASE_URL (common in PaaS like Render)
-        # We might need to ensure it uses asyncpg driver
         import os
         db_url = os.getenv("DATABASE_URL")
         if db_url:
@@ -46,7 +42,7 @@ class Settings(BaseSettings):
         return f"postgresql+asyncpg://{values.get('POSTGRES_USER')}:{values.get('POSTGRES_PASSWORD')}@{values.get('POSTGRES_SERVER')}:{values.get('POSTGRES_PORT')}/{values.get('POSTGRES_DB')}"
 
     REDIS_HOST: str | None = None
-    REDIS_PORT: int = 6379
+    REDIS_PORT: int | None = 6379
     REDIS_URL: str | None = None
 
     @validator("REDIS_URL", pre=True)
