@@ -1,78 +1,77 @@
-# Personalized RSS Feed Backend
+# Personalized Feed Aggregator — Backend
 
-Backend for a personalized social network aggregator. Built with FastAPI, PostgreSQL, Redis, and Celery.
+Backend for a personalized content aggregator: a user subscribes to heterogeneous sources — RSS feeds, HTML blogs, and YouTube channels/playlists — and gets a single deduplicated feed, kept fresh by background workers.
 
-## Features
-- **User Management**: Ingestion of JWT Auth.
-- **Source Management**: RSS, Blogs (HTML), YouTube Channels/Playlists.
-- **Content Ingestion**: Strategy Enforced (RSS, Scraper, YouTube).
-- **Feed**: Aggregated feed with deduplication.
-- **Workers**: Celery for background fetching and scheduling.
+![Python](https://img.shields.io/badge/Python-3.11-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-async-009688)
+![Celery](https://img.shields.io/badge/Celery-workers-37814A)
+![Redis](https://img.shields.io/badge/Redis-broker-DC382D)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-async-336791)
+![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
-## Tech Stack
-- Python 3.11
-- FastAPI
-- SQLAlchemy (Async) + Alembic
-- PostgreSQL (Supabase)
-- Redis
-- Celery
+## About
 
-## Setup & Run (Simple / Local)
+The problem: content people care about is scattered across formats that don't share a protocol — some sources expose clean RSS, others only render HTML, others live behind the YouTube API. This backend normalizes all of them into one timeline.
 
-### 1. Prerequisites
-- Python 3.11+
-- Redis (Running locally or a cloud instance)
-- Supabase Project (for PostgreSQL)
+Each source type has its own **ingestion strategy** (feed parser, HTML scraper, or YouTube fetcher) behind a common interface, so adding a new source kind is a matter of implementing one strategy rather than touching the aggregation logic. Fetching runs **asynchronously end-to-end** (async SQLAlchemy + httpx), and the heavy, scheduled work — polling sources, pulling new items, deduplicating — is offloaded to **Celery workers** brokered by **Redis**, keeping the API responsive. Retries on flaky sources are handled with `tenacity`.
 
-### 2. Environment
-Copy the example environment file:
-```bash
-cp .env.example .env
+This is the stack I reach for by default for backend work, and the project exists to exercise it end to end: async I/O, a worker queue, migrations, and JWT auth.
+
+## Stack
+
+- **Python 3.11**, **FastAPI**
+- **SQLAlchemy (async)** + **Alembic** migrations
+- **PostgreSQL** (Supabase) · **Redis** · **Celery**
+- `feedparser`, `beautifulsoup4`, `lxml` — ingestion
+- `python-jose` + `passlib[bcrypt]` — JWT auth
+- `httpx`, `tenacity` — resilient fetching
+
+## Architecture
+
 ```
-Edit `.env` and fill in your Supabase connection string:
-```bash
-DATABASE_URL="postgresql+asyncpg://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres"
-REDIS_URL="redis://localhost:6379/0" # Or your cloud Redis URL
+app/
+├── main.py            → FastAPI app
+├── api/               → routes (auth, sources, feed)
+├── ingestion/         → strategies: RSS · HTML scraper · YouTube
+├── workers/           → Celery app + scheduled fetch tasks
+├── models / db        → async SQLAlchemy + Alembic
+alembic/               → migrations
+scripts/               → start.sh, worker_start.sh (Render)
 ```
 
-### 3. Installation
-Create a virtual environment and install dependencies:
+Request path: API writes source subscriptions → Celery beat schedules fetches → workers ingest via the matching strategy → items are deduplicated and persisted → the API serves the aggregated feed.
+
+## Running locally
+
+### Prerequisites
+- Python 3.11+, Redis running locally, a PostgreSQL/Supabase database
+
+### Setup
 ```bash
-python -m venv venv
-source venv/bin/activate
+cp .env.example .env      # set DATABASE_URL and REDIS_URL
+python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-```
-
-### 4. Migrations (Supabase)
-Run migrations to create tables in your Supabase database:
-```bash
 alembic upgrade head
 ```
 
-### 5. Run Application
-Start the API server:
+### Run
 ```bash
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload                                   # API  → http://localhost:8000/docs
+celery -A app.workers.celery_app worker --loglevel=info         # worker (separate terminal)
 ```
 
-### 6. Run Worker
-Start the Celery worker in a separate terminal:
-```bash
-celery -A app.workers.celery_app worker --loglevel=info
-```
-
-## API Documentation
-Once running, access the interactive API docs:
-- Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs)
-- ReDoc: [http://localhost:8000/redoc](http://localhost:8000/redoc)
+Interactive docs at `/docs` (Swagger) and `/redoc`.
 
 ## Deployment (Render)
-This project is configured for easy deployment on Render.
-1. Create a **Web Service** on Render connected to this repo.
-   - Environment: `Python 3`
-   - Build Command: `pip install -r requirements.txt`
-   - Start Command: `./scripts/start.sh`
-   - Env Vars: Add `DATABASE_URL` (your Supabase Connection String), `SECRET_KEY`, etc.
-2. Create a **Reddis** instance on Render (or use an external one).
-3. Create a **Background Worker** on Render for Celery.
-   - Start Command: `./scripts/worker_start.sh`
+
+Configured via `render.yaml`: a **Web Service** (`./scripts/start.sh`), a **Redis** instance, and a **Background Worker** for Celery (`./scripts/worker_start.sh`). Set `DATABASE_URL`, `REDIS_URL`, and `SECRET_KEY` as environment variables.
+
+## Known limitations & roadmap
+
+- No automated test suite yet — integration tests around the ingestion strategies are the priority.
+- Deduplication is content/URL based; a fuzzy near-duplicate pass would improve quality.
+- Roadmap: per-source health metrics, user-defined refresh intervals, and full-text search over the feed.
+
+## License
+
+MIT
